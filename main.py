@@ -33,9 +33,9 @@ btn1_image = Image.open('icons/lamp.png')
 btn1_image = btn1_image.resize((50,50), PIL.Image.LANCZOS)
 btn1_image = ImageTk.PhotoImage(btn1_image)
 
-btn2_image = Image.open('icons/rectangle-of-cutted-line-geometrical-shape.png')
-btn2_image = btn2_image.resize((50,50), PIL.Image.LANCZOS)
-btn2_image = ImageTk.PhotoImage(btn2_image)
+# btn2_image = Image.open('icons/rectangle-of-cutted-line-geometrical-shape.png')
+# btn2_image = btn2_image.resize((50,50), PIL.Image.LANCZOS)
+# btn2_image = ImageTk.PhotoImage(btn2_image)
 
 btn5_image = Image.open('icons/exit.png')
 btn5_image = btn5_image.resize((50,50), PIL.Image.LANCZOS)
@@ -64,9 +64,13 @@ btn1 = tk.Button(frame1, text='Monitor', height=90, width=180, fg='green',comman
 btn1['font'] = btn_font
 btn1.grid(row=3, pady=(20,10))
 
-btn2 = tk.Button(frame1, text='Rectangle', height=90, width=180, fg='orange', command=rect_noise, compound='left', image=btn2_image)
-btn2['font'] = btn_font
-btn2.grid(row=3, pady=(20,10), column=3, padx=(20,5))
+# btn2 = tk.Button(frame1, text='Rectangle', height=90, width=180, fg='orange', command=rect_noise, compound='left', image=btn2_image)
+# btn2['font'] = btn_font
+# btn2.grid(row=3, pady=(20,10), column=3, padx=(20,5))
+
+btn5 = tk.Button(frame1, height=90, width=180, fg='red', command=window.quit, image=btn5_image)
+btn5['font'] = btn_font
+btn5.grid(row=3, pady=(20,10), column=3)
 
 btn_font = font.Font(size=25)
 btn3 = tk.Button(frame1, text='Noise', height=90, width=180, fg='green', command=noise, image=btn3_image, compound='left')
@@ -82,9 +86,7 @@ btn6 = tk.Button(frame1, text='In Out', height=90, width=180, fg='green', comman
 btn6['font'] = btn_font
 btn6.grid(row=5, pady=(20,10), column=2)
 
-btn5 = tk.Button(frame1, height=90, width=180, fg='red', command=window.quit, image=btn5_image)
-btn5['font'] = btn_font
-btn5.grid(row=6, pady=(20,10), column=2)
+
 
 btn7 = tk.Button(frame1, text="identify", fg="orange",command=maincall, compound='left', image=btn7_image, height=90, width=180)
 btn7['font'] = btn_font

@@ -5,133 +5,137 @@ import tkinter as tk
 import tkinter.font as font
 
 def collect_data():
-	name = input("Enter name of person : ")
+    """Collects face data for training."""
+    name = input("Enter name of person: ")
+    ids = input("Enter ID: ")
+    count = 1
 
-	count = 1
-	ids = input("Enter ID: ")
+    cap = cv2.VideoCapture(0)
+    filename = "haarcascade_frontalface_default.xml"
 
-	cap = cv2.VideoCapture(0)
+    if not os.path.exists("persons"):
+        os.makedirs("persons")  # Create the persons directory if it doesn't exist
 
-	filename = "haarcascade_frontalface_default.xml"
+    cascade = cv2.CascadeClassifier(filename)
 
-	cascade = cv2.CascadeClassifier(filename)
+    while True:
+        _, frm = cap.read()
+        gray = cv2.cvtColor(frm, cv2.COLOR_BGR2GRAY)
+        faces = cascade.detectMultiScale(gray, 1.4, 1)
 
-	while True:
-		_, frm = cap.read()
+        for x, y, w, h in faces:
+            cv2.rectangle(frm, (x, y), (x + w, y + h), (0, 255, 0), 2)
+            roi = gray[y:y + h, x:x + w]
 
-		gray = cv2.cvtColor(frm, cv2.COLOR_BGR2GRAY)
+            # Save face image to persons folder
+            cv2.imwrite(f"persons/{name}-{count}-{ids}.jpg", roi)
+            count += 1
 
-		faces = cascade.detectMultiScale(gray, 1.4, 1)
+            cv2.putText(frm, f"Count: {count}", (20, 20), cv2.FONT_HERSHEY_PLAIN, 2, (0, 255, 0), 3)
+            cv2.imshow("New Face", roi)
 
-		for x,y,w,h in faces:
-			cv2.rectangle(frm, (x,y), (x+w, y+h), (0,255,0), 2)
-			roi = gray[y:y+h, x:x+w]
+        cv2.imshow("Collecting Data", frm)
 
-			cv2.imwrite(f"persons/{name}-{count}-{ids}.jpg", roi)
-			count = count + 1
-			cv2.putText(frm, f"{count}", (20,20), cv2.FONT_HERSHEY_PLAIN, 2, (0,255,0), 3)
-			cv2.imshow("new", roi)
+        # Exit if 'Esc' key is pressed or 300 images are collected
+        if cv2.waitKey(1) == 27 or count > 300:
+            cv2.destroyAllWindows()
+            cap.release()
+            print("Data collection completed. Starting training...")
+            train()
+            break
 
-
-		cv2.imshow("identify", frm)
-
-		if cv2.waitKey(1) == 27 or count > 300:
-			cv2.destroyAllWindows()
-			cap.release()
-			train()
-			break
 
 def train():
-	print("training part initiated !")
+    """Trains the face recognizer with collected data."""
+    print("Training process initiated!")
 
-	recog = cv2.face.LBPHFaceRecognizer_create()
+    recog = cv2.face.LBPHFaceRecognizer_create()  # Requires opencv-contrib-python
+    dataset = 'persons'
 
-	dataset = 'persons'
+    paths = [os.path.join(dataset, im) for im in os.listdir(dataset)]
+    faces = []
+    ids = []
 
-	paths = [os.path.join(dataset, im) for im in os.listdir(dataset)]
+    for path in paths:
+        ids.append(int(path.split('/')[-1].split('-')[2].split('.')[0]))
+        faces.append(cv2.imread(path, 0))
 
-	faces = []
-	ids = []
-	labels = []
-	for path in paths:
-		labels.append(path.split('/')[-1].split('-')[0])
+    recog.train(faces, np.array(ids))
+    recog.save('model.yml')
+    print("Training completed successfully!")
 
-		ids.append(int(path.split('/')[-1].split('-')[2].split('.')[0]))
-
-		faces.append(cv2.imread(path, 0))
-
-	recog.train(faces, np.array(ids))
-
-	recog.save('model.yml')
-
-	return
 
 def identify():
-	cap = cv2.VideoCapture(0)
+    """Identifies faces using the trained model."""
+    cap = cv2.VideoCapture(0)
+    filename = "haarcascade_frontalface_default.xml"
 
-	filename = "haarcascade_frontalface_default.xml"
+    if not os.path.exists("model.yml"):
+        print("No trained model found! Please train the model first.")
+        return
 
-	paths = [os.path.join("persons", im) for im in os.listdir("persons")]
-	labelslist = {}
-	for path in paths:
-		labelslist[path.split('/')[-1].split('-')[2].split('.')[0]] = path.split('/')[-1].split('-')[0]
+    recog = cv2.face.LBPHFaceRecognizer_create()
+    recog.read('model.yml')
 
-	print(labelslist)
-	recog = cv2.face.LBPHFaceRecognizer_create()
+    cascade = cv2.CascadeClassifier(filename)
 
-	recog.read('model.yml')
+    # Prepare labels for display
+    paths = [os.path.join("persons", im) for im in os.listdir("persons")]
+    labelslist = {}
+    for path in paths:
+        labelslist[path.split('/')[-1].split('-')[2].split('.')[0]] = path.split('/')[-1].split('-')[0]
 
-	cascade = cv2.CascadeClassifier(filename)
+    print("Labels loaded:", labelslist)
 
-	while True:
-		_, frm = cap.read()
+    while True:
+        _, frm = cap.read()
+        gray = cv2.cvtColor(frm, cv2.COLOR_BGR2GRAY)
+        faces = cascade.detectMultiScale(gray, 1.3, 2)
 
-		gray = cv2.cvtColor(frm, cv2.COLOR_BGR2GRAY)
+        for x, y, w, h in faces:
+            cv2.rectangle(frm, (x, y), (x + w, y + h), (0, 255, 0), 2)
+            roi = gray[y:y + h, x:x + w]
 
-		faces = cascade.detectMultiScale(gray, 1.3, 2)
+            label, confidence = recog.predict(roi)
 
-		for x,y,w,h in faces:
-			cv2.rectangle(frm, (x,y), (x+w, y+h), (0,255,0), 2)
-			roi = gray[y:y+h, x:x+w]
+            if confidence < 100:  # Confidence threshold
+                cv2.putText(frm, f"{labelslist[str(label)]} ({int(confidence)})", (x, y - 10),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+            else:
+                cv2.putText(frm, "Unknown", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
 
-			label = recog.predict(roi)
+        cv2.imshow("Face Recognition", frm)
 
-			if label[1] < 100:
-				cv2.putText(frm, f"{labelslist[str(label[0])]} + {int(label[1])}", (x,y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 3)
-			else:
-				cv2.putText(frm, "unkown", (x,y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 3)
+        # Exit if 'Esc' key is pressed
+        if cv2.waitKey(1) == 27:
+            cv2.destroyAllWindows()
+            cap.release()
+            break
 
-		cv2.imshow("identify", frm)
-
-		if cv2.waitKey(1) == 27:
-			cv2.destroyAllWindows()
-			cap.release()
-			break
 
 def maincall():
+    """Creates the GUI for the application."""
+    root = tk.Tk()
+    root.geometry("480x150")
+    root.title("Face Recognition")
+
+    label = tk.Label(root, text="Select an Option Below")
+    label.grid(row=0, columnspan=2)
+    label_font = font.Font(size=20, weight='bold', family='Helvetica')
+    label['font'] = label_font
+
+    btn_font = font.Font(size=15)
+
+    button1 = tk.Button(root, text="Add Member", command=collect_data, height=2, width=20)
+    button1.grid(row=1, column=0, pady=(10, 10), padx=(5, 5))
+    button1['font'] = btn_font
+
+    button2 = tk.Button(root, text="Identify Member", command=identify, height=2, width=20)
+    button2.grid(row=1, column=1, pady=(10, 10), padx=(5, 5))
+    button2['font'] = btn_font
+
+    root.mainloop()
 
 
-	root = tk.Tk()
-
-	root.geometry("480x100")
-	root.title("identify")
-
-	label = tk.Label(root, text="Select below buttons ")
-	label.grid(row=0, columnspan=2)
-	label_font = font.Font(size=35, weight='bold',family='Helvetica')
-	label['font'] = label_font
-
-	btn_font = font.Font(size=25)
-
-	button1 = tk.Button(root, text="Add Member ", command=collect_data, height=2, width=20)
-	button1.grid(row=1, column=0, pady=(10,10), padx=(5,5))
-	button1['font'] = btn_font
-
-	button2 = tk.Button(root, text="Start with known ", command=identify, height=2, width=20)
-	button2.grid(row=1, column=1,pady=(10,10), padx=(5,5))
-	button2['font'] = btn_font
-	root.mainloop()
-
-	return
-
-
+if __name__ == "__main__":
+    maincall()
